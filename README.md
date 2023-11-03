@@ -10,10 +10,15 @@ To get all commands
 
 List all tasks
 ```
----all 
+--all 
 ```
 
 Create task
 ```
 ---name "Something to do" --deadline "12/12/2023" --priority "High"
+```
+
+remove task
+```
+--remove 0
 ```
