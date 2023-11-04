@@ -15,7 +15,7 @@ struct Task {
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
+#[command(author = "BorisDmv", version = "1.0.0", about = "Create tasks and give them deadline and priority and then complete them", long_about = None)]
 struct Args {
     /// Name of the task
     #[arg(short, long)]
@@ -31,6 +31,7 @@ struct Args {
     #[arg(short, long, default_value_t = 1)]
     count: u8,
 
+    /// Print all tasks
     #[arg(long)]
     all: bool,
 
@@ -46,9 +47,6 @@ struct Args {
 fn main() {
     let args = Args::parse();
 
-    // Create a vector to store tasks
-    let mut tasks: Vec<Task> = Vec::new();
-
     if let Some(file_to_delete) = args.delete {
         // Delete the specified file if the `delete` argument is provided
         delete_json_file(&file_to_delete);
@@ -59,8 +57,12 @@ fn main() {
         // Remove a specific task by index or ID
         remove_task_by_index(index_to_remove);
     } else {
-        // Create and save tasks
-        let mut tasks: Vec<Task> = Vec::new();
+        // Read the existing tasks from the JSON file
+        let file_name = "tasks.json";
+        let existing_tasks = read_existing_tasks_from_file(file_name);
+
+        // Create new tasks
+        let mut new_tasks: Vec<Task> = Vec::new();
 
         for _ in 0..args.count {
             let task = Task {
@@ -68,19 +70,32 @@ fn main() {
                 deadline: args.deadline.clone(),
                 priority: args.priority.clone(),
             };
-            tasks.push(task);
+            new_tasks.push(task);
         }
 
-        // Serialize tasks to JSON
-        let json_tasks = serde_json::to_string_pretty(&tasks).unwrap();
+        // Combine the new tasks with the existing tasks
+        let mut combined_tasks = existing_tasks;
+        combined_tasks.extend(new_tasks);
 
-        // Write JSON data to a file
-        let file_name = "tasks.json";
+        // Serialize combined tasks to JSON
+        let json_tasks = serde_json::to_string_pretty(&combined_tasks).unwrap();
+
+        // Write JSON data to the file
         let mut file = File::create(file_name).expect("Failed to create the JSON file");
         file.write_all(json_tasks.as_bytes())
             .expect("Failed to write to the JSON file");
 
         println!("Tasks saved to {}.", file_name);
+    }
+}
+
+fn read_existing_tasks_from_file(file_name: &str) -> Vec<Task> {
+    match std::fs::read_to_string(file_name) {
+        Ok(contents) => serde_json::from_str(&contents).unwrap(),
+        Err(err) => {
+            eprintln!("Error reading the JSON file: {}", err);
+            Vec::new() // Return an empty vector if there was an error
+        }
     }
 }
 
@@ -90,7 +105,10 @@ fn print_all_items_from_json() {
         Ok(contents) => {
             let tasks: Vec<Task> = serde_json::from_str(&contents).unwrap();
             for (index, task) in tasks.iter().enumerate() {
-                println!("Task {}:", format!("Task {}", index + 1).yellow());
+                println!(
+                    "Task {}:",
+                    format!("Task {} with index {}", index + 1, index).yellow()
+                );
                 println!("Name: {}", task.name.green());
                 println!("Deadline: {}", task.deadline.red());
                 println!("Priority: {}", task.priority.blue());
